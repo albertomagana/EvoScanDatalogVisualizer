@@ -1,0 +1,202 @@
+<html>
+   <head>
+      <title>EvoScan Datalog Grapher</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+      <script src="https://code.jquery.com/jquery-3.5.1.js" integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc=" crossorigin="anonymous"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.11/jquery.csv.js" integrity="sha512-eDkr7sqAJqr3s63mdge3uTyuKVpEbzw3eji7CbGYr8VeM+NtqNajwuAiU31S0buRspDF1mZ8qTSeEZ4v/8b3Gw==" crossorigin="anonymous"></script>
+      <style id="compiled-css" type="text/css">
+        .chartWrapper {/* w w w. j a v  a2 s.co  m*/
+        position: relative;
+        }
+        .chartWrapper > canvas {
+        position: absolute;
+        left: 0;
+        top: 0;
+        pointer-events:none;
+        }
+        .chartAreaWrapper {
+        width: 5600px;
+        overflow-x: scroll;
+        }
+      </style>
+      <script type="text/javascript">
+    window.onload=function(){
+    }
+
+      </script>
+   </head>
+   <body>
+
+    <input type="file" id="file-selector">
+    <div id="selections">
+
+    </div>
+    <button id="generateGraphs" type="button" name="generateGraphs">
+        Generate Graphs
+    </button>
+    <script>
+    const fileSelector = document.getElementById('file-selector');
+    const reader = new FileReader();
+    const generateButton = document.getElementById('generateGraphs');
+
+    function random_rgba() {
+        var o = Math.round, r = Math.random, s = 255;
+        return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + r().toFixed(1) + ')';
+    }   
+
+    generateButton.addEventListener('click', (event)=>{
+
+        var divCharts = document.getElementById("graphingArea");
+        divCharts.textContent = '';
+        
+
+        var selections = document.getElementById('selections');
+        var selectionConfig = [];
+        var incrementalId = 0;
+
+        for (var six=0; six < selections.children.length; six++){
+            var childSelect = selections.children[six]
+
+            if (childSelect.type == 'select-one' && childSelect.value != null && childSelect.value.length > 0)
+            {
+                var setting = {
+                    name : childSelect.value, index: 0, values: [], chartId: "myChart" + (incrementalId == 0? "" : (incrementalId+1)),
+                    color: random_rgba()
+                };
+                selectionConfig.push(setting);
+                incrementalId++;
+            }
+        }
+
+        var arrays_csv = window.arrays_csv;
+        var label_colum = "LogEntryTime";
+        var labels = arrays_csv[0];
+
+        for (var ix=0; ix < selectionConfig.length; ix++){
+            validx = labels.findIndex(name => name === selectionConfig[ix].name);
+
+            selectionConfig[ix].index = validx;
+        }
+
+        var x_axis =[];
+        for (var idx=1; idx < arrays_csv.length; idx++){
+            x_axis.push(arrays_csv[idx][0]);
+
+
+            for (var selix=0; selix < selectionConfig.length; selix++){
+                selectionConfig[selix].values.push(arrays_csv[idx][selectionConfig[selix].index]);
+            }
+
+        }
+        
+        for (var i=0; i < selectionConfig.length; i++)
+            {
+            var chartItem = selectionConfig[i].chartId;
+            var newChart = document.createElement("canvas");
+            newChart.id = chartItem;
+            newChart.height = "300";
+            newChart.width= "5600";
+            divCharts.appendChild(newChart);
+
+            var values = null;
+            var bgc = null, bdc = null;
+            var title = "";
+
+            if (i == 0){
+                bgc = "rgb(255,0,0)"
+				bdc = "rgb(255,0,0)"
+            }
+            if (i==1)
+            {
+                bgc = "rgb(20,0,255)"
+				bdc = "rgb(0,0,255)"
+            }
+            if (i==2)
+            {
+                bgc = "rgb(0,255,0)"
+				bdc = "rgb(0,255,0)"
+            }
+
+            if (bgc == null){
+                bgc = selectionConfig[i].color;
+                bdc = selectionConfig[i].color;
+            }
+
+            var ctx = document.getElementById(chartItem).getContext("2d");
+            var data = {
+                labels: x_axis,
+                datasets: [
+                    {
+                        label: selectionConfig[i].name,
+                        fill: false,
+                        backgroundColor: bgc,
+				        borderColor: bdc,
+                        data: selectionConfig[i].values
+                    }
+                ]
+            };
+            new Chart(ctx,
+            {
+            type: 'line',
+            data: data,
+                onAnimationComplete: function () {
+                    var sourceCanvas = this.chart.ctx.canvas;
+                    var copyWidth = this.scale.xScalePaddingLeft - 5;
+                    var copyHeight = this.scale.endPoint + 5;
+                    var targetCtx = document.getElementById("myChartAxis" + ((i+1)>= 2 ? i: "")).getContext("2d");
+                    targetCtx.canvas.width = copyWidth;
+                    targetCtx.drawImage(sourceCanvas, 0, 0, copyWidth, copyHeight, 0, 0, copyWidth, copyHeight);
+                }
+            });
+            }
+    });
+
+    reader.addEventListener('load', (event) => {
+        const result = event.target.result;
+        window.arrays_csv = null;
+        var arrays_csv = $.csv.toArrays(result);
+        window.arrays_csv = arrays_csv;
+        var labels = arrays_csv[0];
+
+        var divSelections = document.getElementById("selections");
+        var defaultSelectionIndex = 5;
+        for (var i=1; i< labels.length - 5; i++){
+            //Create and append select list
+            var selectList = document.createElement("select");
+            selectList.id = "mySelect"+i;
+            //Create and append the options
+            for (var d = 0; d < labels.length; d++) {
+                var option = document.createElement("option");
+                option.value = labels[d];
+                option.text = labels[d];
+                selectList.appendChild(option);
+            }
+            selectList.selectedIndex = defaultSelectionIndex;
+            defaultSelectionIndex++;
+            divSelections.appendChild(selectList);
+            var brsp = document.createElement("br");
+            divSelections.appendChild(brsp);
+
+
+        }
+
+    });
+    fileSelector.addEventListener('change', (event) => {
+        const fileList = event.target.files;
+        console.log(fileList);
+        reader.readAsText(fileList[0]);
+    });
+    </script>
+        <div class="chartWrapper">
+            <div class="chartAreaWrapper" id="graphingArea">
+                <!-- <canvas id="myChart" height="300" width="5600"></canvas>
+                <canvas id="myChart2" height="300" width="5600"></canvas>
+                <canvas id="myChart3" height="300" width="5600"></canvas>
+                <canvas id="myChart4" height="300" width="5600"></canvas>
+                <canvas id="myChart5" height="300" width="5600"></canvas> -->
+            </div>
+            <canvas id="myChartAxis" height="300" width="0"></canvas>
+        </div>
+   </body>
+</html>
